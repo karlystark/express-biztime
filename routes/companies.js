@@ -1,3 +1,4 @@
+"use strict";
 //import
 
 const express = require("express");
@@ -14,7 +15,7 @@ const app = express();
  * Returns:  {companies: [{code, name}, ...]}
  */
 router.get("/", async function (req, res) {
-  const results = await db.query("SELECT code, name FROM companies");
+  const results = await db.query("SELECT code, name FROM companies"); //TODO: new lines
 
   return res.json({ companies: results.rows });
 });
@@ -85,6 +86,23 @@ router.put("/:code", async function (req, res){
   return res.json({ company });
 });
 
+
+/**
+ * Deletes an existing company
+ * Returns {status: "deleted"}
+ */
+
+router.delete("/:code", async function (req, res) {
+  const code = req.params.code;
+  const results = await db.query(
+    "DELETE FROM companies WHERE code = $1 RETURNING code", [code]);
+
+  const company = results.rows[0];
+
+  if (company === undefined) throw new NotFoundError(`No matching company: ${code}`);
+  return res.json({status: "deleted"});
+
+});
 
 
 
