@@ -80,7 +80,51 @@ router.post("/", async function(req, res){
 });
 
 
+/**
+ * Edits an invoice
+ * Receives: {amt}
+ * Returns:  {invoice: {id, comp_code, amt, paid, add_date, paid_date}}
+ */
 
+router.put("/:id", async function(req, res) {
+  if(req.body === undefined || "id" in req.body) throw new BadRequestError();
+
+  const id = req.params.id;
+
+  const results = await db.query(
+    `UPDATE invoices
+      SET amt=$1
+      WHERE id=$2
+      RETURNING id, comp_code, amt, paid, add_date, paid_date`,
+      [req.body.amt, id]
+  );
+
+  const invoice = results.rows[0];
+
+  if (invoice === undefined) throw new NotFoundError(`No matching invoice: ${id}`);
+
+  return res.json({ invoice });
+});
+
+
+/**
+ * Deletes an invoice
+ * Returns:  {status: "deleted"}
+ */
+
+router.delete("/:id", async function (req, res) {
+  const id = req.params.id;
+
+  const results = await db.query(
+    "DELETE FROM invoices WHERE id = $1 RETURNING id", [id]
+  );
+
+  const invoice = results.rows[0];
+
+  if (invoice === undefined) throw new NotFoundError(`No matching invoice: ${id}`);
+
+  return res.json({status: "deleted"});
+});
 
 
 
