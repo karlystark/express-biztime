@@ -7,7 +7,7 @@ const { NotFoundError, BadRequestError } = require("../expressError");
 const router = new express.Router();
 const db = require("../db");
 
-const app = express();
+//const app = express();
 
 
 /**
@@ -18,7 +18,8 @@ const app = express();
 router.get("/", async function(req, res) {
   const results = await db.query(`
   SELECT id, comp_code
-    FROM invoices`);
+    FROM invoices
+    ORDER BY id`);
 
   return res.json({ invoices : results.rows });
 });
@@ -26,30 +27,39 @@ router.get("/", async function(req, res) {
 
 /**
  * Gets given invoice
- * Returns:  {invoice: {id, amt, paid, add_date, paid_date,
- * company: {code, name, description}}
+ * Returns: {
+ *    invoice:
+ *      {id,
+ *       amt,
+ *       paid,
+ *       add_date,
+ *       paid_date,
+ *       company: {
+ *          code,
+ *          name,
+ *          description}}
  */
 
 router.get("/:id", async function(req, res){
-  const id = req.params.id;
+  const id = Number(req.params.id);
 
   const iResults = await db.query(`
-  SELECT id, amt, paid, add_date, paid_date
+  SELECT id, comp_code, amt, paid, add_date, paid_date
     FROM invoices
-    WHERE id = $1`, [id]);
+    WHERE id=$1`, [id]);
 
   const invoices = iResults.rows[0];
 
   if(invoices === undefined) throw new NotFoundError(`No matching invoice: ${id}`);
 
-  const comp_code = invoices.comp_code;
-
   const cResults = await db.query(`
   SELECT code, name, description
     FROM companies
-    WHERE code = ${comp_code}`);
+    WHERE code= $1`, [invoices.comp_code]);
 
   const company = cResults.rows[0];
+
+  delete invoices.comp_code;
 
   invoices.company = company;
 
@@ -68,11 +78,14 @@ router.get("/:id", async function(req, res){
 router.post("/", async function(req, res){
   if(req.body === undefined) throw new BadRequestError();
 
+  const comp_code = req.body.comp_code;
+  const amt = req.body.amt;
+
   const results = await db.query(`
   INSERT INTO invoices (comp_code, amt)
     VALUES ($1, $2)
-    RETURNING id, comp_code, amt, paid, add_data, paid_date`,
-  [req.body.comp_code, req.body.amt]);
+    RETURNING id, comp_code, amt, paid, add_date, paid_date`,
+  [comp_code, amt]);
 
   const invoice = results.rows[0];
 
@@ -116,7 +129,9 @@ router.delete("/:id", async function (req, res) {
   const id = req.params.id;
 
   const results = await db.query(
-    "DELETE FROM invoices WHERE id = $1 RETURNING id", [id]
+    `DELETE FROM invoices
+      WHERE id = $1
+      RETURNING id`, [id]
   );
 
   const invoice = results.rows[0];

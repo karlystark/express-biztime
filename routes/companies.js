@@ -7,7 +7,7 @@ const { NotFoundError, BadRequestError } = require("../expressError");
 const router = new express.Router();
 const db = require("../db");
 
-const app = express();
+//const app = express();
 
 
 /**
@@ -15,25 +15,40 @@ const app = express();
  * Returns:  {companies: [{code, name}, ...]}
  */
 router.get("/", async function (req, res) {
-  const results = await db.query("SELECT code, name FROM companies"); //TODO: new lines
+  const results = await db.query(`
+    SELECT code, name
+      FROM companies`);
 
   return res.json({ companies: results.rows });
 });
 
 
 /**
- * Gets code, name, and description from company
- * Returns:  {company: {code, name, description}}
+ * Gets code, name, description and invoice information from company
+ * Returns:  {company: {code, name, description,
+ * invoices: [id...]}}
  */
 router.get("/:code", async function (req, res) {
   const code = req.params.code;
-  const results = await db.query(`
+
+  const cResults = await db.query(`
     SELECT code, name, description
       FROM companies
       WHERE code = $1`, [code]);
-  const company = results.rows[0];
+
+  const company = cResults.rows[0];
 
   if (company === undefined) throw new NotFoundError(`No matching company: ${code}`);
+
+  const iResults = await db.query(`
+    SELECT id
+      FROM invoices
+      WHERE comp_code= $1`, [code]);
+
+  const invoices = (iResults.rows).map(el => el["id"]);
+
+  company.invoices = invoices;
+
   return res.json({ company });
 });
 
